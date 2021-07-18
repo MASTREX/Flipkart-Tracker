@@ -7,8 +7,12 @@ from requests.exceptions import ConnectionError
 from bs4 import BeautifulSoup
 
 class FlipkartTracker():
-    user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-
+    '''
+    url: product url
+    
+    limit: limit price
+    '''
+    
     def __init__(self, url, limit = 0):
         self.logger = logging.getLogger()
         self.url = url
@@ -81,7 +85,7 @@ if __name__ == '__main__':
                 tracker.fetch()
                 status_str = name + ': ' + tracker.status()
                 logger.info(status_str)
-                #system('termux-notification -c \'' + status_str + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
+                system('termux-notification -c \'' + status_str + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
                 logger.warning('sleeping for {}'.format(sleep_time))
                 sleep(sleep_time)
         except ConnectionError:

@@ -1,0 +1,6 @@
+version 0.1.0 (July 17, 2021)
+	Base script
+
+version 0.3.0 (July 18, 2021)
+	termux in app notification
+	Logger integration
