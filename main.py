@@ -2,6 +2,7 @@ import requests
 from requests.exceptions import ConnectionError
 from bs4 import BeautifulSoup
 from time import sleep
+from os import system
 
 class FlipkartTracker():
     user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -29,7 +30,7 @@ class FlipkartTracker():
 
     def fetch(self):
         response = self.session.get(self.url)
-        soup = BeautifulSoup(response.content, 'lxml')
+        soup = BeautifulSoup(response.content, 'html.parser')
         price = soup.find('div', attrs={'class': '_30jeq3 _16Jk6d'}).text
         self.price = (int)(price[1:].replace(',', ''))
 
@@ -46,8 +47,8 @@ class FlipkartTracker():
             if(self.price <= self.limit):
                 return 'Not available but in range at Rs' + str(self.price)
             else:
-                return 'Nnt available and not in range at Rs' + str(self.price)
-        
+                return 'Not available and not in range at Rs' + str(self.price)
+
     def end(self):
         self.session.close()
 
@@ -61,20 +62,22 @@ if(__name__ == '__main__'):
         #'': FlipkartTracker(url='', limit=),
         #'': FlipkartTracker(url='', limit=),
     }
-    sleep_time = (int)((10) / len(products_dict))
+    sleep_time = (int)((10) / len(products_dict))   #sleep_time = (int)((interval-time-in-sec) / len(products_dict))
     while(True):
         try:
             for name, tracker in products_dict.items():
                 tracker.fetch()
-                print(name + ': ' + tracker.status())
+                status_str = name + ': ' + tracker.status()
+                print(status_str)
+                system('termux-notification -c \'' + status_str + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
                 sleep(sleep_time)
         except ConnectionError:
             print('No Internet!')
-            break
+            sleep(10*60)
         except KeyboardInterrupt:
             print('Terminated by user')
             break
         except Exception as e:
             raise e
-    for tracker in products_dict.values():            
+    for tracker in products_dict.values():
         tracker.end()
