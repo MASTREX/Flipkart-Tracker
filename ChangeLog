@@ -4,3 +4,6 @@ version 0.1.0 (July 17, 2021)
 version 0.3.0 (July 18, 2021)
 	termux in app notification
 	Logger integration
+
+version 0.3.1 ()
+	notification only on change
