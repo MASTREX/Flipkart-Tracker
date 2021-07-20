@@ -17,5 +17,21 @@ After installing Termux run following command:
 ```bash
 pkg install python
 pkg install termux-api
+termux-setup-storage
 pip install requests beautifulsoup4
 ```
+
+### To Run the script
+Change to directory of phone internal storage `cd storage/shared` and then to your file location `cd '<path to your file>'`. These commands can be combined together.
+
+To run the file use `python main.py`
+
+Example: As I have my 'main.py' in folder named 'Script' on my internal storage then i use
+```
+cd 'storage/shared/Script/'
+python main.py
+```
+
+> Note!: Change main.py according to your need. 
+>- Line74: links to your product
+>- Line80: time interval between fetching same product link again
