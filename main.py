@@ -42,27 +42,45 @@ class FlipkartTracker():
 		self.session.verify = 'PortSwiggerCA.crt'
 
 	def read_data(self):
+		'''
+		read from data.db
+		'''
 		c = self.conn.cursor()
+		c2 = self.conn.cursor()
 		try:
-			c.execute('SELECT id, name, url, demand_price, current_id, date_added FROM products')
+			c.execute('SELECT id, name, url, demand_price, curr_id, date_added FROM products')
 		except sqlite3.OperationalError as e:
 			if str(e).find('no such table') >= 0:
 				self.logger.warning('Previous Data file not found!')
-				c.execute('CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, url TEXT, demand_price REAL, current_id INTEGER, date_added TEXT)')
+				c.execute('CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, url TEXT, demand_price REAL, curr_id INTEGER, date_added TEXT)')
 			else:
 				raise
 		except:
 			raise
 		else:
-			for i, n, u, dp, currid, dta in c.fetchall():
+			for i, n, u, dp, curr_id, dta in c.fetchall():
 				self.products.append({
 					'name' : n,
 					'url' : u,
 					'demand_price' : dp,
-					'curr_id' : currid,
+					'curr_id' : curr_id,
 					'date_added': datetime.datetime.strptime(dta, '%Y-%m-%d T%H:%M:%S')
 				})
-				self.total_product_count = i
+
+				# reading last entry
+				if curr_id != -1:
+					try:
+						c2.execute(f'SELECT * FROM product_{i} WHERE id = {curr_id}')
+					except:
+						raise
+					else:
+						for id, dt, in_stock, price in c2.fetchall():
+							self.products[i]['last_entry'] = {
+								'datetime' : datetime.datetime.strptime(dt, '%Y-%m-%d T%H:%M:%S'),
+								'in_stock' : in_stock == 1,	# True or False
+								'price' : price
+							}
+			self.total_product_count = len(self.products) - 1
 			self.logger.info('Data file exist and read successfully')
 			print(self.products)
 	
@@ -78,51 +96,114 @@ class FlipkartTracker():
 		self.total_product_count += 1
 		c = self.conn.cursor()
 		try:
-			c.execute(f'CREATE TABLE product_{self.total_product_count} (id INTEGER PRIMARY KEY, datetime TEXT, in_stock INTEGER, Price REAL)')
+			c.execute(f'CREATE TABLE product_{self.total_product_count} (id INTEGER PRIMARY KEY, datetime TEXT, in_stock INTEGER, price REAL)')
 		except:
 			raise
 		try:
 			dt_str = dt.strftime('%Y-%m-%d T%H:%M:%S')
-			c.execute(f'INSERT INTO products (id, name, url, demand_price, current_id, date_added) VALUES ({self.total_product_count}, \'{name}\', \'{url}\', {demand_price}, -1, \'{dt_str}\')')
+			c.execute(f'INSERT INTO products (id, name, url, demand_price, curr_id, date_added) VALUES ({self.total_product_count}, "{name}", "{url}", {demand_price}, -1, "{dt_str}")')
 		except:
 			raise
 		self.commit_to_db()
 		logger.info('Product added')
 
-	def db_update(self):
-		pass
+	def db_update(self, product_id):
+		c = self.conn.cursor()
+		product = self.products[product_id]
+		try:
+			c.execute(f'UPDATE products SET curr_id = "{product["curr_id"]}" WHERE id = "{product_id}"')
+		except:
+			raise
+		try:
+			dt_str = product['last_entry']['datetime'].strftime('%Y-%m-%d T%H:%M:%S')
+			if product['last_entry']['in_stock']:
+				c.execute(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 1, {product["last_entry"]["price"]})')
+			else:
+				c.execute(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 0, {product["last_entry"]["price"]})')
+		except:
+			raise
+		self.commit_to_db()
 
 	def db_delete(self):
 		pass
 
-	def notifier(self):
-		pass
+	def notifier(self, msg):
+		self.logger.warning('termux notify')
+		# system('termux-notification -c \'' + msg + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
+		self.logger.debug('In app notificaton sent')
 
 	def run(self):
-		pass
+		if self.total_product_count == -1:
+			self.logger.error('No Product!')
+			self.end()
+			return
+		sleep_time = (int)((20) / len(self.products))   #sleep_time = (int)((interval-time-in-sec) / len(products_dict))
+		# Do not abuse flipkart server by setting very small interval-time
+		while True:
+			try:
+				try:
+					# system('clear')
+					for product_id in range(self.total_product_count + 1):
+						self.fetch(product_id)
+						logger.warning('sleeping for {}'.format(sleep_time))
+						sleep(sleep_time)
+				except ConnectionError:
+					logger.error('No Internet!')
+					logger.warning('Going to sleep for 10 mins')
+					sleep(10*60)
+			except KeyboardInterrupt:
+				logger.error('Terminated by user')
+				break
+			except Exception as e:
+				logger.exception(e)
+				raise e
+			self.end()
 
-	def fetch(self):
+	def fetch(self, product_id):
 		self.logger.debug('Making request...')
-		response = self.session.get(self.url)
+		response = self.session.get(self.products[product_id]['url'])
 		self.logger.debug('Got Response')
 		soup = BeautifulSoup(response.content, 'html.parser')
 		price = soup.find('div', attrs={'class': '_30jeq3 _16Jk6d'}).text
-		self.price = (int)(price[1:].replace(',', ''))
+		curr_price = (int)(price[1:].replace(',', ''))
 
 		#<div class="_16FRp0">Sold Out</div>
-		if (soup.find('div', attrs={'class': '_16FRp0'}) == None): self.in_stock = True
-
-	def status(self) -> str:
-		if(self.in_stock):
-			if(self.price <= self.limit):
-				return 'Available and in range at Rs' + str(self.price)
-			else:
-				return 'Available but not in range at Rs' + str(self.price)
+		if (soup.find('div', attrs={'class': '_16FRp0'}) == None):
+			self.update_handler(product_id, curr_price, True)
 		else:
-			if(self.price <= self.limit):
-				return 'Not available but in range at Rs' + str(self.price)
+			self.update_handler(product_id, curr_price, False)
+			
+
+	def update_handler(self, product_id, new_price, new_stock_status):
+		product = self.products[product_id]
+		dt = datetime.datetime.now()
+		if product['curr_id'] != -1:
+			last_in_stock = product['last_entry']['in_stock']
+			last_price = product['last_entry']['price']
+		else:
+			last_in_stock = False
+			last_price = 0.0
+			product['last_entry'] = {}
+		status_str = product['name'] + ': '
+		if(new_stock_status):
+			if(new_price <= product['demand_price']):
+				status_str += 'Available and in range at Rs' + str(new_price)
 			else:
-				return 'Not available and not in range at Rs' + str(self.price)
+				status_str += 'Available but not in range at Rs' + str(new_price)
+		else:
+			if(new_price <= product['demand_price']):
+				status_str += 'Not available but in range at Rs' + str(new_price)
+			else:
+				status_str += 'Not available and not in range at Rs' + str(new_price)
+		logger.info(status_str)
+		if (int)(last_price) != (int)(new_price) or last_in_stock != new_stock_status:
+			product['curr_id'] += 1
+			product['last_entry']['datetime'] = dt
+			product['last_entry']['in_stock'] = new_stock_status
+			product['last_entry']['price'] = new_price
+			self.db_update(product_id)
+			# App Notification when status changed
+			self.notifier(status_str)		
 
 	def commit_to_db(self):
 		try:
@@ -132,6 +213,7 @@ class FlipkartTracker():
 
 	def end(self):
 		self.session.close()
+		logger.info('All Session ended')
 
 if __name__ == '__main__':
 	logger = logging.getLogger(__name__)
@@ -141,46 +223,6 @@ if __name__ == '__main__':
 	c_handler.setLevel(logging.INFO)
 	logger.addHandler(c_handler)
 
-	# products_dict = {
-	# 	# ' <NAME> ': FlipkartTracker(url=' <URL> ', limit= <LIMIT> )
-	# 	'SAMSUNG Galaxy A50': FlipkartTracker(url='https://www.flipkart.com/samsung-galaxy-a50-blue-64-gb/p/itmfe4cssxfzcph3?pid=MOBFE4CSRHGF4ETQ&lid=LSTMOBFE4CSRHGF4ETQGJSQUK', limit=20000),
-	# 	'Sandisk 32GB': FlipkartTracker(url='https://www.flipkart.com/sandisk-ultra-32-gb-microsdhc-class-10-120-mbps-memory-card/p/itm8a003f95095a5?pid=ACCFXNGYT6YJZVHZ&lid=LSTACCFXNGYT6YJZVHZKDEKXR', limit=450),
-	# 	# '': FlipkartTracker(url='', limit=),
-	# 	# '': FlipkartTracker(url='', limit=),
-	# 	# '': FlipkartTracker(url='', limit=),
-	# }
-	# sleep_time = (int)((1*60) / len(products_dict))   #sleep_time = (int)((interval-time-in-sec) / len(products_dict))
-	# # Do not abuse flipkart server by setting very small interval-time
-
-	# while(True):
-	# 	try:
-	# 		system('clear')
-	# 		for name, tracker in products_dict.items():
-	# 			temp_in_stock = tracker.in_stock
-	# 			temp_price = tracker.price
-	# 			tracker.fetch()
-	# 			status_str = name + ': ' + tracker.status()
-	# 			logger.info(status_str)
-	# 			# App Notification when status changed
-	# 			if(tracker.in_stock != temp_in_stock or tracker.price != temp_price):
-	# 				system('termux-notification -c \'' + status_str + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
-	# 				logger.debug('In app notificaton sent')
-	# 			logger.warning('sleeping for {}'.format(sleep_time))
-	# 			sleep(sleep_time)
-	# 	except ConnectionError:
-	# 		logger.error('No Internet!')
-	# 		logger.warning('Going to sleep for 10 mins')
-	# 		sleep(10*60)
-	# 	except KeyboardInterrupt:
-	# 		logger.error('Terminated by user')
-	# 		break
-	# 	except Exception as e:
-	# 		logger.exception(e)
-	# 		raise e
-	# for tracker in products_dict.values():
-	# 	tracker.end()
-	# 	logger.debug('all session closed successfully')
-
 	tracker = FlipkartTracker()
 	choosed = 1
 	while(choosed == 1):
@@ -188,11 +230,11 @@ if __name__ == '__main__':
 		print('Enter the option:')
 		print('1. Add Product')
 		print('2. Run tracker')
-		print('9. Remove Product')
+		print('3. Remove Product')
 		print('0. EXIT')
 		try:
 			choosed = (int)(input())
-			if(choosed < 0 or choosed > 2):
+			if(choosed < 0 or choosed > 3):
 				raise ValueError
 		except ValueError:
 			print('Invalid Option!')
@@ -209,7 +251,7 @@ if __name__ == '__main__':
 				tracker.add_product(name, url, dp)
 			elif choosed == 2:
 				# run
-				pass
-			elif choosed == 9:
+				tracker.run()
+			elif choosed == 3:
 				# remove
 				pass
