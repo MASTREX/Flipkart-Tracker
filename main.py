@@ -67,7 +67,7 @@ class FlipkartTracker():
 					'date_added': datetime.datetime.strptime(dta, '%Y-%m-%d T%H:%M:%S')
 				})
 
-				# reading last entry
+				# reading last entries
 				if curr_id != -1:
 					try:
 						c2.execute(f'SELECT * FROM product_{i} WHERE id = {curr_id}')
@@ -83,7 +83,7 @@ class FlipkartTracker():
 			self.total_product_count = len(self.products) - 1
 			self.logger.info('Data file exist and read successfully')
 			print(self.products)
-	
+
 	def add_product(self, name, url, demand_price):
 		dt = datetime.datetime.now()
 		self.products.append({
@@ -123,13 +123,13 @@ class FlipkartTracker():
 		except:
 			raise
 		self.commit_to_db()
+		self.logger.info('database has been updated')
 
 	def db_delete(self):
 		pass
 
 	def notifier(self, msg):
-		self.logger.warning('termux notify')
-		# system('termux-notification -c \'' + msg + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
+		system('termux-notification -c \'' + msg + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
 		self.logger.debug('In app notificaton sent')
 
 	def run(self):
@@ -137,12 +137,15 @@ class FlipkartTracker():
 			self.logger.error('No Product!')
 			self.end()
 			return
-		sleep_time = (int)((20) / len(self.products))   #sleep_time = (int)((interval-time-in-sec) / len(products_dict))
-		# Do not abuse flipkart server by setting very small interval-time
+		sleep_time = (int)((60*60) / len(self.products))	# sleep_time = (int)((interval-time-in-sec) / len(products_dict))
+															# Do not abuse flipkart server by setting very small interval-time
+		loop_c = 0
 		while True:
 			try:
 				try:
-					# system('clear')
+					system('clear')
+					loop_c += 1
+					print(f'Loop Count: {loop_c}\n')
 					for product_id in range(self.total_product_count + 1):
 						self.fetch(product_id)
 						logger.warning('sleeping for {}'.format(sleep_time))
@@ -157,7 +160,7 @@ class FlipkartTracker():
 			except Exception as e:
 				logger.exception(e)
 				raise e
-			self.end()
+		self.end()
 
 	def fetch(self, product_id):
 		self.logger.debug('Making request...')
@@ -167,12 +170,11 @@ class FlipkartTracker():
 		price = soup.find('div', attrs={'class': '_30jeq3 _16Jk6d'}).text
 		curr_price = (int)(price[1:].replace(',', ''))
 
-		#<div class="_16FRp0">Sold Out</div>
+		# <div class="_16FRp0">Sold Out</div>
 		if (soup.find('div', attrs={'class': '_16FRp0'}) == None):
 			self.update_handler(product_id, curr_price, True)
 		else:
 			self.update_handler(product_id, curr_price, False)
-			
 
 	def update_handler(self, product_id, new_price, new_stock_status):
 		product = self.products[product_id]
@@ -203,7 +205,7 @@ class FlipkartTracker():
 			product['last_entry']['price'] = new_price
 			self.db_update(product_id)
 			# App Notification when status changed
-			self.notifier(status_str)		
+			self.notifier(status_str)
 
 	def commit_to_db(self):
 		try:
@@ -213,7 +215,8 @@ class FlipkartTracker():
 
 	def end(self):
 		self.session.close()
-		logger.info('All Session ended')
+		self.conn.close()
+		logger.info('Tracker Stopped')
 
 if __name__ == '__main__':
 	logger = logging.getLogger(__name__)
