@@ -167,7 +167,11 @@ class FlipkartTracker():
 		response = self.session.get(self.products[product_id]['url'])
 		self.logger.debug('Got Response')
 		soup = BeautifulSoup(response.content, 'html.parser')
-		price = soup.find('div', attrs={'class': '_30jeq3 _16Jk6d'}).text
+		try:
+			price = soup.find('div', attrs={'class': '_30jeq3 _16Jk6d'}).text
+		except AttributeError:
+			self.logger.error('No price tag found!')
+			return
 		curr_price = (int)(price[1:].replace(',', ''))
 
 		# <div class="_16FRp0">Sold Out</div>
@@ -234,18 +238,14 @@ if __name__ == '__main__':
 		print('1. Add Product')
 		print('2. Run tracker')
 		print('3. Remove Product')
-		print('0. EXIT')
 		try:
 			choosed = (int)(input())
-			if(choosed < 0 or choosed > 3):
+			if(choosed < 1 or choosed > 3):
 				raise ValueError
 		except ValueError:
 			print('Invalid Option!')
 		else:
-			if choosed == 0:
-				# end
-				pass
-			elif choosed == 1:
+			if choosed == 1:
 				# add
 				print()
 				url=input('Enter the product URL (must be obtained from web browser): ')
@@ -257,4 +257,4 @@ if __name__ == '__main__':
 				tracker.run()
 			elif choosed == 3:
 				# remove
-				pass
+				print('This feature is in development!')

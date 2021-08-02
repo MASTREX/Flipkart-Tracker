@@ -33,5 +33,4 @@ python main.py
 ```
 
 > Note!: Change main.py according to your need. 
->- Line74: links to your product
->- Line80: time interval between fetching same product link again
+>- Line140: time interval between fetching same product link again

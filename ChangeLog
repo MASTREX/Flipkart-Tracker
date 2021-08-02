@@ -5,5 +5,14 @@ version 0.3.0 (July 18, 2021)
 	termux in app notification
 	Logger integration
 
-version 0.3.1 ()
+version 0.6.4 (August 1, 2021)
+	* Core Structure Changed
+	* Database implementation
+	* User Interface for product link addition
 	notification only on change
+	update only on change
+	KeyboardInterrupt fix
+	loop counter
+
+version 0.6.5 ()
+	Handling error for not finding price tag
