@@ -13,7 +13,7 @@ This python script is meant to run 'Termux' app.
   - requests
   - beautifulsoup
 
-After installing Termux run following command:
+After installing Termux run following command to get all the required packages:
 ```bash
 pkg install python
 pkg install termux-api
@@ -21,7 +21,9 @@ termux-setup-storage
 pip install requests beautifulsoup4
 ```
 
-### To Run the script
+## To Run the script
+Download the script and save it in your internal storage.
+
 Change to directory of phone internal storage `cd storage/shared` and then to your file location `cd '<path to your file>'`. These commands can be combined together.
 
 To run the file use `python main.py`
