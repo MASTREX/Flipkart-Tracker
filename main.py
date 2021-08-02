@@ -82,7 +82,7 @@ class FlipkartTracker():
 							}
 			self.total_product_count = len(self.products) - 1
 			self.logger.info('Data file exist and read successfully')
-			print(self.products)
+			self.logger.debug(self.products)
 
 	def add_product(self, name, url, demand_price):
 		dt = datetime.datetime.now()
