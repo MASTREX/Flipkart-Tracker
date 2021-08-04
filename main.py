@@ -9,7 +9,7 @@ import sqlite3
 import datetime
 
 import requests
-from requests.exceptions import ConnectionError
+from requests.exceptions import (ConnectionError, ReadTimeout)
 from bs4 import BeautifulSoup
 
 class FlipkartTracker():
@@ -150,7 +150,7 @@ class FlipkartTracker():
 						self.fetch(product_id)
 						logger.warning('sleeping for {}'.format(sleep_time))
 						sleep(sleep_time)
-				except ConnectionError:
+				except (ConnectionError, ReadTimeout):
 					logger.error('No Internet!')
 					logger.warning('Going to sleep for 10 mins')
 					sleep(10*60)
