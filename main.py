@@ -127,8 +127,8 @@ class FlipkartTracker():
 	def db_delete(self):
 		pass
 
-	def notifier(self, msg):
-		system('termux-notification -c \'' + msg + '\' --group flipkart -i 0 --title \'Flipkart Tracker\'')
+	def notifier(self, msg, id=-1):
+		system('termux-notification -c \'' + msg + '\' --group flipkart -i ' + str(id) + ' --title \'Flipkart Tracker\'')
 		self.logger.debug('In app notificaton sent')
 
 	def run(self):
@@ -151,6 +151,7 @@ class FlipkartTracker():
 						sleep(sleep_time)
 				except (ConnectionError, ReadTimeout):
 					logger.error('No Internet!')
+					self.notifier('No Internet!', -1)
 					logger.warning('Going to sleep for 10 mins')
 					sleep(10*60)
 			except KeyboardInterrupt:
@@ -158,6 +159,7 @@ class FlipkartTracker():
 				break
 			except Exception as e:
 				logger.exception(e)
+				self.notifier('Error!', -1)
 				raise e
 		self.end()
 
@@ -208,7 +210,7 @@ class FlipkartTracker():
 			product['last_entry']['price'] = new_price
 			self.db_update(product_id)
 			# App Notification when status changed
-			self.notifier(status_str)
+			self.notifier(status_str, product_id)
 
 	def commit_to_db(self):
 		try:

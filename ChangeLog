@@ -14,9 +14,10 @@ version 0.6.4 (August 1, 2021)
 	KeyboardInterrupt fix
 	loop counter
 
-version 0.7.7 ()
+version 0.7.8 ()
 	* Removed use of Session
 	Handling error for not finding price tag
 	Removed product details at start
 	ReadTimeout error
+	Notification on error or no internet
 	
