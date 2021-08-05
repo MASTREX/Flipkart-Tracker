@@ -25,21 +25,20 @@ class FlipkartTracker():
 		self.products = []
 		self.total_product_count = -1
 		self.conn = sqlite3.connect('data.db')
-		self.session = requests.Session()
-		self.session.headers = {'DNT': '1',
-								'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+		self.req_headers = {'DNT': '1',
+							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 		#self.set_proxies()
 		self.read_data()
 
-	def _set_proxies(self):
-		'''
-		Set for burp proxy
-		'''
-		self.session.proxies = {
-			'http': 'http://127.0.0.1:8080',
-			'https': 'https://127.0.0.1:8080'
-		}
-		self.session.verify = 'PortSwiggerCA.crt'
+	# def _set_proxies(self):
+	# 	'''
+	# 	Set for burp proxy
+	# 	'''
+	# 	self.session.proxies = {
+	# 		'http': 'http://127.0.0.1:8080',
+	# 		'https': 'https://127.0.0.1:8080'
+	# 	}
+	# 	self.session.verify = 'PortSwiggerCA.crt'
 
 	def read_data(self):
 		'''
@@ -164,7 +163,7 @@ class FlipkartTracker():
 
 	def fetch(self, product_id):
 		self.logger.debug('Making request...')
-		response = self.session.get(self.products[product_id]['url'])
+		response = requests.get(self.products[product_id]['url'], headers=self.req_headers)
 		self.logger.debug('Got Response')
 		soup = BeautifulSoup(response.content, 'html.parser')
 		try:
@@ -218,7 +217,6 @@ class FlipkartTracker():
 			raise
 
 	def end(self):
-		self.session.close()
 		self.conn.close()
 		logger.info('Tracker Stopped')
 
