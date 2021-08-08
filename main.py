@@ -51,7 +51,7 @@ class FlipkartTracker():
 		except sqlite3.OperationalError as e:
 			if str(e).find('no such table') >= 0:
 				self.logger.warning('Previous Data file not found!')
-				c.execute('CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, url TEXT, demand_price REAL, curr_id INTEGER, date_added TEXT)')
+				self.execute_db('CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, url TEXT, demand_price REAL, curr_id INTEGER, date_added TEXT)')
 			else:
 				raise
 		except:
@@ -99,34 +99,22 @@ class FlipkartTracker():
 			'date_added': dt
 		})
 		self.total_product_count += 1
-		c = self.conn.cursor()
-		try:
-			c.execute(f'CREATE TABLE product_{self.total_product_count} (id INTEGER PRIMARY KEY, datetime TEXT, in_stock INTEGER, price REAL)')
-		except:
-			raise
-		try:
-			dt_str = dt.strftime('%Y-%m-%d T%H:%M:%S')
-			c.execute(f'INSERT INTO products (id, name, url, demand_price, curr_id, date_added) VALUES ({self.total_product_count}, "{name}", "{url}", {demand_price}, -1, "{dt_str}")')
-		except:
-			raise
+		self.execute_db(f'CREATE TABLE product_{self.total_product_count} (id INTEGER PRIMARY KEY, datetime TEXT, in_stock INTEGER, price REAL)')
+
+		dt_str = dt.strftime('%Y-%m-%d T%H:%M:%S')
+		self.execute_db(f'INSERT INTO products (id, name, url, demand_price, curr_id, date_added) VALUES ({self.total_product_count}, "{name}", "{url}", {demand_price}, -1, "{dt_str}")')
 		self.commit_to_db()
 		logger.info('Product added')
 
 	def db_update(self, product_id):
-		c = self.conn.cursor()
 		product = self.products[product_id]
-		try:
-			c.execute(f'UPDATE products SET curr_id = "{product["curr_id"]}" WHERE id = "{product_id}"')
-		except:
-			raise
-		try:
-			dt_str = product['last_entry']['datetime'].strftime('%Y-%m-%d T%H:%M:%S')
-			if product['last_entry']['in_stock']:
-				c.execute(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 1, {product["last_entry"]["price"]})')
-			else:
-				c.execute(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 0, {product["last_entry"]["price"]})')
-		except:
-			raise
+		self.execute_db(f'UPDATE products SET curr_id = "{product["curr_id"]}" WHERE id = "{product_id}"')
+
+		dt_str = product['last_entry']['datetime'].strftime('%Y-%m-%d T%H:%M:%S')
+		if product['last_entry']['in_stock']:
+			self.execute_db(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 1, {product["last_entry"]["price"]})')
+		else:
+			self.execute_db(f'INSERT INTO product_{product_id} (id, datetime, in_stock, price) VALUES ({product["curr_id"]}, "{dt_str}", 0, {product["last_entry"]["price"]})')
 		self.commit_to_db()
 		self.logger.info('database has been updated')
 
@@ -220,13 +208,20 @@ class FlipkartTracker():
 
 	def update_url(self, id, new_url):
 		self.products[id]['url'] = new_url
-		c = self.conn.cursor()
-		try:
-			c.execute(f'UPDATE products SET url = "{new_url}" WHERE id = {id}')
-		except:
-			raise
+		self.execute_db(f'UPDATE products SET url = "{new_url}" WHERE id = {id}')
 		self.commit_to_db()
 		self.logger.info('URL Updated')
+
+	def execute_db(self, command):
+		'''
+		only use for simple executing commands which do not provide any output or object
+		like do not use for SELECT commands
+		'''
+		c = self.conn.cursor()
+		try:
+			c.execute(command)
+		except:
+			raise
 
 	def commit_to_db(self):
 		try:
@@ -244,6 +239,7 @@ if __name__ == '__main__':
 	c_handler = logging.StreamHandler()
 	c_handler.setFormatter(logging.Formatter('%(asctime)s : %(name)s - %(levelname)s : %(message)s'))
 	c_handler.setLevel(logging.INFO)
+	# c_handler.setLevel(logging.DEBUG)
 	logger.addHandler(c_handler)
 
 	tracker = FlipkartTracker()
@@ -305,4 +301,3 @@ if __name__ == '__main__':
 							new_url = input('Enter New URL: ')
 							tracker.update_url(id, new_url)
 							print('Done')
-
