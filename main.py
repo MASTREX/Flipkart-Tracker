@@ -27,7 +27,7 @@ class FlipkartTracker():
 		self.conn = sqlite3.connect('data.db')
 		self.req_headers = {'DNT': '1',
 							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-		#self.set_proxies()
+		# self.set_proxies()
 		self.read_data()
 
 	# def _set_proxies(self):
@@ -82,6 +82,12 @@ class FlipkartTracker():
 			self.total_product_count = len(self.products) - 1
 			self.logger.info('Data file exist and read successfully')
 			self.logger.debug(self.products)
+
+	def show_all_products(self):
+		print()
+		print(f'{"id":<5} {"Product Name":<20}')
+		for i in range(self.total_product_count + 1):
+			print(f'{i:<5} {self.products[i]["name"]:<20}')
 
 	def add_product(self, name, url, demand_price):
 		dt = datetime.datetime.now()
@@ -212,6 +218,16 @@ class FlipkartTracker():
 			# App Notification when status changed
 			self.notifier(status_str, product_id)
 
+	def update_url(self, id, new_url):
+		self.products[id]['url'] = new_url
+		c = self.conn.cursor()
+		try:
+			c.execute(f'UPDATE products SET url = "{new_url}" WHERE id = {id}')
+		except:
+			raise
+		self.commit_to_db()
+		self.logger.info('URL Updated')
+
 	def commit_to_db(self):
 		try:
 			self.conn.commit()
@@ -238,14 +254,19 @@ if __name__ == '__main__':
 		print('1. Add Product')
 		print('2. Run tracker')
 		print('3. Remove Product')
+		print('4. Update or change configuration')
+		print('0. EXIT')
 		try:
 			choosed = (int)(input())
-			if(choosed < 1 or choosed > 3):
+			if(choosed < 0 or choosed > 4):
 				raise ValueError
 		except ValueError:
 			print('Invalid Option!')
 		else:
-			if choosed == 1:
+			if choosed == 0:
+				# exit
+				exit()
+			elif choosed == 1:
 				# add
 				print()
 				url=input('Enter the product URL (must be obtained from web browser): ')
@@ -258,3 +279,30 @@ if __name__ == '__main__':
 			elif choosed == 3:
 				# remove
 				print('This feature is in development!')
+			elif choosed == 4:
+				# Update config
+				print()
+				print('Enter the option:')
+				print('1. Update URL')
+				try:
+					choosed = (int)(input())
+					if(choosed < 1 or choosed > 1):
+						raise ValueError
+				except ValueError:
+					print('Invalid Option!')
+				else:
+					if choosed == 1:
+						# edit URL
+						tracker.show_all_products()
+						try:
+							id = int(input('\nEnter id of the product: '))
+							if(id < 0 or id > tracker.total_product_count):
+								raise ValueError
+						except ValueError:
+							print('Id out of range!')
+						else:
+							print(f'\nCurrent URL: {tracker.products[id]["url"]}')
+							new_url = input('Enter New URL: ')
+							tracker.update_url(id, new_url)
+							print('Done')
+
