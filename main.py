@@ -135,19 +135,20 @@ class FlipkartTracker():
 		loop_c = 0
 		while True:
 			try:
-				try:
-					system('clear')
-					loop_c += 1
-					print(f'Loop Count: {loop_c}\n')
-					for product_id in range(self.total_product_count + 1):
+				system('clear')
+				loop_c += 1
+				print(f'Loop Count: {loop_c}\n')
+				for product_id in range(self.total_product_count + 1):
+					try:
 						self.fetch(product_id)
+					except (ConnectionError, ReadTimeout):
+						logger.error('No Internet!')
+						self.notifier('No Internet!', -1)
+						logger.warning('Going to sleep for 10 mins')
+						sleep(10*60)
+					else:
 						logger.warning('sleeping for {}'.format(sleep_time))
 						sleep(sleep_time)
-				except (ConnectionError, ReadTimeout):
-					logger.error('No Internet!')
-					self.notifier('No Internet!', -1)
-					logger.warning('Going to sleep for 10 mins')
-					sleep(10*60)
 			except KeyboardInterrupt:
 				logger.error('Terminated by user')
 				break

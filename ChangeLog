@@ -23,4 +23,6 @@ version 0.7.11 (August 8, 2021)
 	Url editing
 	code cleaning
 	Some fixes
-	
+
+version 0.7.12 (August 11, 2021)
+	loop does not reset after No internet
