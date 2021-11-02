@@ -14,9 +14,9 @@ from bs4 import BeautifulSoup
 
 class FlipkartTracker():
 	'''
-	url: product url
+	self.products: Is a list type containing all details of all products
 
-	limit: limit price
+	self.total_product_count: An int and stores count of all product starting from 0
 	'''
 
 	def __init__(self):
@@ -42,7 +42,7 @@ class FlipkartTracker():
 
 	def read_data(self):
 		'''
-		read from data.db
+		read stored data from data.db
 		'''
 		c = self.conn.cursor()
 		c2 = self.conn.cursor()
